@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TrustFund - 100% Transparent Donations</title>
+    <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            background-color: #f9f9f9;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .demo-button {
+            background-color: #f39c12;
+        }
+        .demo-button:hover {
+            background-color: #e67e22;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin: 20px 0;
+        }
+        .stat-box {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            width: 30%;
+            text-align: center;
+        }
+        .demo-notice {
+            background-color: #ffe6cc;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>🦸 TrustFund: Ukraine Relief Effort (TESTNET)</h1>
+    <p>Every donation is transparent and tracked on the Ethereum blockchain.</p>
+    
+    <div class="container">
+        <div class="stats">
+            <div class="stat-box">
+                <h3>Total Raised</h3>
+                <p id="totalRaised">0 ETH</p>
+            </div>
+            <div class="stat-box">
+                <h3>Donors</h3>
+                <p id="donorCount">0</p>
+            </div>
+            <div class="stat-box">
+                <h3>Last Donation</h3>
+                <p id="lastDonation">None yet</p>
+            </div>
+        </div>
+        
+        <button id="donateBtn" onclick="donate()">Donate 0.1 ETH</button>
+        <button class="demo-button" onclick="demoMode()">Demo Mode</button>
+        <p>View all transactions: <a id="etherscanLink" target="_blank">Etherscan</a></p>
+        <p>Smart Contract: <span id="contractAddress">0x123456789...</span></p>
+        
+        <div id="demoNotice" class="demo-notice">
+            <strong>DEMO MODE:</strong> Simulating blockchain transactions for hackathon demonstration purposes.
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>Recent Transactions</h2>
+        <div id="transactions">
+            Connect wallet to view transactions
+        </div>
+    </div>
+
+    <script>
+        const contractAddress = "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"; // From Remix JavaScript VM
+        const abi = [
+            {"inputs":[{"internalType":"address","name":"_charity","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},
+            {"anonymous":false,"inputs":[{"indexed":false,"internalType":"address","name":"donor","type":"address"},{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"DonationReceived","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"FundsWithdrawn","type":"event"},
+            {"inputs":[],"name":"charityWallet","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"donate","outputs":[],"stateMutability":"payable","type":"function"},
+            {"inputs":[],"name":"totalDonated","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"withdraw","outputs":[],"stateMutability":"nonpayable","type":"function"}
+        ];
+        
+        let donorCount = 0;
+        let totalRaised = 0;
+        let isDemoMode = false;
+        let demoTransactions = [];
+
+        document.getElementById("contractAddress").innerText = contractAddress;
+        document.getElementById("etherscanLink").href = `https://sepolia.etherscan.io/address/${contractAddress}`;
+
+        async function donate() {
+            if (isDemoMode) {
+                simulateDonation();
+                return;
+            }
+            
+            try {
+                const provider = new ethers.providers.Web3Provider(window.ethereum);
+                await provider.send("eth_requestAccounts", []);
+                const signer = provider.getSigner();
+                const contract = new ethers.Contract(contractAddress, abi, signer);
+                
+                const tx = await contract.donate({ value: ethers.utils.parseEther("0.1") });
+                alert("Transaction submitted! Waiting for confirmation...");
+                await tx.wait();
+                donorCount++;
+                document.getElementById("donorCount").innerText = donorCount;
+                document.getElementById("lastDonation").innerText = "Just now";
+                alert("Donation verified on blockchain! View on Etherscan.");
+                updateData();
+            } catch (error) {
+                alert("Error: " + error.message + "\n\nTry using Demo Mode for the hackathon.");
+            }
+        }
+
+        function simulateDonation() {
+            // Create fake transaction hash
+            const txHash = "0x" + Math.random().toString(16).substring(2, 16) + Math.random().toString(16).substring(2, 16);
+            const amount = 0.1;
+            const timestamp = new Date().toLocaleTimeString();
+            
+            // Update UI
+            donorCount++;
+            totalRaised += amount;
+            document.getElementById("donorCount").innerText = donorCount;
+            document.getElementById("totalRaised").innerText = totalRaised.toFixed(1) + " ETH";
+            document.getElementById("lastDonation").innerText = timestamp;
+            
+            // Add to transaction list
+            demoTransactions.unshift({
+                hash: txHash,
+                amount: amount,
+                timestamp: timestamp
+            });
+            
+            // Update transaction display
+            updateTransactionDisplay();
+            
+            alert("Demo donation of 0.1 ETH successfully simulated!");
+        }
+
+        function updateTransactionDisplay() {
+            let txHTML = '';
+            demoTransactions.forEach(tx => {
+                txHTML += `<p><strong>${tx.timestamp}</strong>: ${tx.amount} ETH donated | TX: <span style="color:#777">${tx.hash.substring(0,16)}...</span></p>`;
+            });
+            document.getElementById("transactions").innerHTML = txHTML || "No transactions yet";
+        }
+
+        function demoMode() {
+            isDemoMode = true;
+            document.getElementById("demoNotice").style.display = "block";
+            document.getElementById("donateBtn").textContent = "Simulate Donation";
+            alert("Demo Mode activated! You can now simulate donations without connecting to a blockchain.");
+        }
+
+        async function updateData() {
+            if (!isDemoMode) {
+                try {
+                    const provider = new ethers.providers.Web3Provider(window.ethereum);
+                    const contract = new ethers.Contract(contractAddress, abi, provider);
+                    const total = await contract.totalDonated();
+                    document.getElementById("totalRaised").innerHTML = ethers.utils.formatEther(total) + " ETH";
+                } catch (error) {
+                    console.error("Error updating data:", error);
+                }
+            }
+        }
+
+        // Initial update
+        updateData();
+    </script>
+</body>
+</html>
